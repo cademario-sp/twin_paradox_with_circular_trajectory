@@ -10,7 +10,7 @@ np.set_printoptions(threshold=sys.maxsize)
 g = 9.81        #Accelerazione in m/s^2
 c = 2.99792458e8         # Velocità della luce in m/s
 #alpha_min_start = 1.0
-alpha_min_start = 1.3
+alpha_min_start = 1.5
 #alpha_min = 1.194229584   # for 1e7 seconds
 #alpha_min = 1.33207123828   # for 2e8 seconds (about 6 years)
 #alpha_min = 1.5321775  # for 5e8 seconds (about 20 years)
@@ -28,8 +28,8 @@ tau_eval = np.linspace(0, loop_time, evaluations)  # Si stabiliscono nell'interv
 tolerance=1e-4          # Visto che tutto è espresso in unità della velocità c,si tratta del valore in s/c che una volta raggiunta dice al programma di fermarsi
 
 # Equazioni relativistiche del moto
-def equations(alpha_min_param, tau, f):
-    x_pos, y_pos, vx, vy, gamma = f
+def equations(alpha_min_param, tau, y):
+    x_pos, y_pos, vx, vy, gamma = y
 # Qui si spiega come il moto e la posizione dell'astronave variano secondo 3 parametri. Alpha_min_param è lo sterzo inizialmente applicato, tau è il tempo (visto secondo le evaluations) e f è la funzione che descrive la posizione x,y, la velocità x,y e l'istantaneo fattore gamma.
 
 # Di seguito è riportato l’Ansatz per l’accelerazione:
@@ -61,22 +61,21 @@ def equations(alpha_min_param, tau, f):
 #   Trasformiamo a tang e norm in ax e ay del sistema di riferimento fisso (quello della "terra")
     ax = ((a_tangent_prop/gamma_cube) * vx - (a_normal_prop/gamma_sqr) * vy ) / norm_v
     ay = ((a_normal_prop/gamma_sqr) * vx + (a_tangent_prop/gamma_cube) * vy ) / norm_v
-#    ax_prop = ((a_tangent_prop) * vx - (a_normal_prop) * vy ) / norm_v
-#    ay_prop = ((a_normal_prop) * vx + (a_tangent_prop) * vy ) / norm_v
+
 #Formule trovate su sezione "relativistic acceleration" Wikipedia
 
     return [vx, vy, ax, ay, gamma]
 
-f0 = [0, 0, 1e-9, 0, 1.0]           # Funzione f parametro iniziale
+y0 = [0, 0, 1e-9, 0, 1.0]           # Funzione f parametro iniziale
 alpha_min_param = alpha_min_start   # Parametro iniziale dello sterzo
 
 for i in range(max_iter):
-    sol = solve_ivp(lambda tau, f: equations(alpha_min_param, tau, f), [0, loop_time], f0,
+    sol = solve_ivp(lambda tau, y: equations(alpha_min_param, tau, y), [0, loop_time], y0,
                     t_eval=tau_eval, rtol=1e-12, atol=1e-12) #Il programma "risolve" automaticamente da sé l'equazione differenziale ordinaria
-    xf, yf, vxf, vyf, invgamma = sol.f[:, -1]
+    xf, yf, vxf, vyf, invgamma = sol.y[:, -1]
     distance = np.sqrt( xf*xf + yf*yf )           # distanza dall'origine in t/c
-    x_sol = sol.f[0] * c  #La soluzione la moltiplico per c affinché si ha il risultato in metri
-    y_sol = sol.f[1] * c
+    x_sol = sol.y[0] 
+    y_sol = sol.y[1] 
     if distance < tolerance:
         print(f"Converged in {i+1} iterations.")
         break
@@ -84,13 +83,13 @@ for i in range(max_iter):
     # Se la distanza è ancora maggiore della tolleranza voluta, si continua per minimizzare la distanza voluta. Fa uso del metodo Newton-Rhaftson. Secondo il quale si fa avvicinare un valore che somiglia alla derivata (la derivata non si può ottenere) a 0, dove la distanza è nulla
     h = 1e-14
     
-    sol = solve_ivp(lambda tau, f: equations(alpha_min_param+h, tau, f), [0, loop_time], f0,
+    sol = solve_ivp(lambda tau, y: equations(alpha_min_param+h, tau, y), [0, loop_time], y0,
                     t_eval=tau_eval, rtol=1e-12, atol=1e-12)
-    xf, yf, vxf, vyf, invgamma = sol.f[:, -1]
+    xf, yf, vxf, vyf, invgamma = sol.y[:, -1]
     distance_plus_h = np.sqrt( xf*xf + yf*yf )
-    sol = solve_ivp(lambda tau, f: equations(alpha_min_param-h, tau, f), [0, loop_time], f0,
+    sol = solve_ivp(lambda tau, y: equations(alpha_min_param-h, tau, y), [0, loop_time], y0,
                     t_eval=tau_eval, rtol=1e-12, atol=1e-12)
-    xf, yf, vxf, vyf, invgamma = sol.f[:, -1]
+    xf, yf, vxf, vyf, invgamma = sol.y[:, -1]
     distance_minus_h = np.sqrt( xf*xf + yf*yf )
 
     fprime = (distance_plus_h - distance_minus_h) / (2 * h)
@@ -105,9 +104,9 @@ for i in range(max_iter):
 
     # Plot trajectory
     plt.figure(figsize=(8, 6))
-    plt.plot(x_sol / c, y_sol / c, label="Relativistic Closed Loop")
-    plt.scatter([x_sol[0] / c], [y_sol[0] / c], color='green', label='Start') 
-    plt.scatter([x_sol[-1] / c], [y_sol[-1] / c], color='red', label='End')
+    plt.plot(x_sol, y_sol, label="Relativistic Closed Loop")
+    plt.scatter([x_sol[0]], [y_sol[0]], color='green', label='Start') 
+    plt.scatter([x_sol[-1]], [y_sol[-1]], color='red', label='End')
     plt.xlabel("x [light-seconds]")
     plt.ylabel("y [light-seconds]")
     plt.title("Closed Relativistic Trajectory with Constant Proper Acceleration")
@@ -119,10 +118,9 @@ for i in range(max_iter):
 
 
 # Output final error
-xf, yf, vxf, vyf, invgamma = sol.f[:, -1]
+xf, yf, vxf, vyf, invgamma = sol.y[:, -1]
 print(f"Final position error : ({xf*c:.3e}, {yf*c:.3e})")
 print(f"Final velocity error : ({vxf*c:.3e}, {vyf*c:.3e})")
-#time_spaceship = (loop_time/evaluations)*np.sum(1.0/sol.f[:,4])
-sum_inv_gamma = np.sum(1.0 - (np.square(sol.f[2])+np.square(sol.f[3])))
+sum_inv_gamma = np.sum(1.0 - (np.square(sol.y[2])+np.square(sol.y[3])))
 time_spaceship = (loop_time/evaluations)*sum_inv_gamma #il tempo trascorso sull'astronave è la somma delle evaluazioni con le loro rispettive dilatazioni del tempo
 print(f"total time in spaceship: ({time_spaceship:.3e})")
