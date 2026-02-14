@@ -6,21 +6,20 @@ import matplotlib.pyplot as plt
 
 np.set_printoptions(threshold=sys.maxsize)
 
+# Argomenti
+loop_time = float(sys.argv[1])       # Tempo trascorso sulla terra
+alpha_min_start = float(sys.argv[2]) # parametro che si utilizza per "far curvare" l'astronave
+
 # Costanti
 g = 9.81        #Accelerazione in m/s^2
 c = 2.99792458e8         # Velocità della luce in m/s
-alpha_min_start = 1.3
-#alpha_min = 1.194229584   # for 1e7 seconds
-#alpha_min = 1.33207123828   # for 2e8 seconds (about 6 years)
-#alpha_min = 1.5321775  # for 5e8 seconds (about 20 years)
-#alpha_min = 0.0   # standard sin / cos acceleration
 a_hat = g / c   # accelerazione g espressa in unità della velocità c
 #alpha corrisponde al parametro che si utilizza per "far curvare" l'astronave
 
 # Simulation parameters
 max_iter = 15            # Numero massimo di iterazioni Newton-Raphson
 #loop_time = 10000000.0  # Tempo trascorso sulla terra
-loop_time = 100000000.0  # Tempo trascorso sulla terra
+#loop_time = 100000000.0 # Tempo trascorso sulla terra
 evaluations = 50000 
 #Numero di volte nel moto circolare che si svolge il procedimento t_n -> t_n+1
 tau_eval = np.linspace(0, loop_time, evaluations)  # Si stabiliscono nell'intervallo di tempo da 0 a loop_time le "evaluations" tali che essi siano equispaziati nell'intervallo di tempo 
@@ -123,3 +122,4 @@ print(f"Final velocity error : ({vxf*c:.3e}, {vyf*c:.3e})")
 sum_inv_gamma = np.sum(1.0 - (np.square(sol.y[2])+np.square(sol.y[3])))
 time_spaceship = (loop_time/evaluations)*sum_inv_gamma #il tempo trascorso sull'astronave è la somma delle evaluazioni con le loro rispettive dilatazioni del tempo
 print(f"total time in spaceship: ({time_spaceship:.3e})")
+
